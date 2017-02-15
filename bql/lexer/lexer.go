@@ -54,6 +54,8 @@ const (
 	ItemFrom
 	// ItemWhere represents the where keyword in BQL.
 	ItemWhere
+	// ItemConstruct represents the construct keyword in BQL.
+	ItemConstruct
 	// ItemAs represents the as keyword in BQL.
 	ItemAs
 	// ItemType represents keyword type in BQL.
@@ -155,6 +157,8 @@ func (tt TokenType) String() string {
 		return "FROM"
 	case ItemWhere:
 		return "WHERE"
+	case ItemConstruct:
+		return "CONSTRUCT"
 	case ItemCount:
 		return "COUNT"
 	case ItemSum:
@@ -262,6 +266,7 @@ const (
 	into           = "into"
 	from           = "from"
 	where          = "where"
+	construct      = "construct"
 	as             = "as"
 	before         = "before"
 	after          = "after"
@@ -484,6 +489,10 @@ func lexKeyword(l *lexer) stateFn {
 	}
 	if strings.EqualFold(input, where) {
 		consumeKeyword(l, ItemWhere)
+		return lexSpace
+	}
+	if strings.EqualFold(input, construct) {
+		consumeKeyword(l, ItemConstruct)
 		return lexSpace
 	}
 	if strings.EqualFold(input, as) {

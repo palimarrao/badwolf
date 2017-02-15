@@ -88,6 +88,18 @@ func BQL() *Grammar {
 					NewTokenType(lexer.ItemSemicolon),
 				},
 			},
+			{
+				Elements: []Element{
+					NewSymbol("CONSTRUCT"),
+					NewTokenType(lexer.ItemInto),
+					NewSymbol("GRAPHS"),
+					NewTokenType(lexer.ItemFrom),
+					NewSymbol("GRAPHS"),
+					NewSymbol("WHERE"),
+					NewSymbol("HAVING"),
+					NewTokenType(lexer.ItemSemicolon),
+				},
+			},
 		},
 		"CREATE_GRAPHS": []*Clause{
 			{
@@ -185,6 +197,16 @@ func BQL() *Grammar {
 			{
 				Elements: []Element{
 					NewTokenType(lexer.ItemWhere),
+					NewTokenType(lexer.ItemLBracket),
+					NewSymbol("CLAUSES"),
+					NewTokenType(lexer.ItemRBracket),
+				},
+			},
+		},
+		"CONSTRUCT": []*Clause{
+			{
+				Elements: []Element{
+					NewTokenType(lexer.ItemConstruct),
 					NewTokenType(lexer.ItemLBracket),
 					NewSymbol("CLAUSES"),
 					NewTokenType(lexer.ItemRBracket),
