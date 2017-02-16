@@ -113,6 +113,10 @@ func TestAcceptByParse(t *testing.T) {
 		                          /room<000> "connects_to"@[] /room<001>};`,
 		`delete data from ?world {/room<000> "named"@[] "Hallway"^^type:text.
 		                          /room<000> "connects_to"@[] /room<001>};`,
+		// Test Construct clause.
+		`construct {?s "foo"@[,] ?o} into ?a from ?b where{?s "foo"@[,] ?o} having ?s = ?o;`,
+		`construct {?s "foo"@[,] ?o} into ?a from ?b where{?s "foo"@[,] ?o};`,
+
 	}
 	p, err := NewParser(BQL())
 	if err != nil {

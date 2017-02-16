@@ -90,7 +90,8 @@ func BQL() *Grammar {
 			},
 			{
 				Elements: []Element{
-					NewSymbol("CONSTRUCT"),
+					NewTokenType(lexer.ItemConstruct),
+					NewSymbol("CONSTRUCT_FACTS"),
 					NewTokenType(lexer.ItemInto),
 					NewSymbol("GRAPHS"),
 					NewTokenType(lexer.ItemFrom),
@@ -203,10 +204,9 @@ func BQL() *Grammar {
 				},
 			},
 		},
-		"CONSTRUCT": []*Clause{
+		"CONSTRUCT_FACTS": []*Clause{
 			{
 				Elements: []Element{
-					NewTokenType(lexer.ItemConstruct),
 					NewTokenType(lexer.ItemLBracket),
 					NewSymbol("CLAUSES"),
 					NewTokenType(lexer.ItemRBracket),
