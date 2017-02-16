@@ -47,6 +47,8 @@ const (
 	Create
 	// Drop statement.
 	Drop
+	// Construct statement.
+	Construct
 )
 
 // String provides a readable version of the StatementType.
@@ -62,6 +64,8 @@ func (t StatementType) String() string {
 		return "CREATE"
 	case Drop:
 		return "DROP"
+	case Construct:
+		return "CONSTRUCT"
 	default:
 		return "UNKNOWN"
 	}
@@ -296,7 +300,7 @@ func (c *GraphClause) Specificity() int {
 	return s
 }
 
-// BindingsMap returns the binding map fo he graph clause.
+// BindingsMap returns the binding map for the graph clause.
 func (c *GraphClause) BindingsMap() map[string]int {
 	bm := make(map[string]int)
 
