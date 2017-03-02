@@ -627,7 +627,7 @@ func lexPredicateOrLiteral(l *lexer) stateFn {
 	return lexLiteral
 }
 
-// lexPredicate lexes a predicate of out of the input.
+// lexPredicate lexes a predicate out of the input.
 func lexPredicate(l *lexer) stateFn {
 	l.next()
 	for done := false; !done; {
@@ -678,7 +678,7 @@ func lexPredicate(l *lexer) stateFn {
 	return lexSpace
 }
 
-// lexPredicate lexes a literal of out of the input.
+// lexLiteral lexes a literal out of the input.
 func lexLiteral(l *lexer) stateFn {
 	l.next()
 	for done := false; !done; {
