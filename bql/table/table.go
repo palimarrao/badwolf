@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"sort"
 	"strings"
@@ -33,9 +34,12 @@ import (
 // safe for concurrency. You should take appropriate precautions if you want to
 // access it concurrently and wrap to properly control concurrent operations.
 type Table struct {
-	bs   []string
-	mbs  map[string]bool
-	data []Row
+	// AvailableBindings in order contained on the table
+	AvailableBindings []string `json:"bindings,omitempty"`
+	// Data that form the table.
+	Data []Row `json:"rows,omitempty"`
+	// mbs is an internal map for bindings existance.
+	mbs map[string]bool
 }
 
 // New returns a new table that can hold data for the the given bindings. The,
@@ -49,18 +53,18 @@ func New(bs []string) (*Table, error) {
 		return nil, fmt.Errorf("table.New does not allow duplicated bindings in %s", bs)
 	}
 	return &Table{
-		bs:  bs,
-		mbs: m,
+		AvailableBindings: bs,
+		mbs:               m,
 	}, nil
 }
 
 // Cell contains one of the possible values that form rows.
 type Cell struct {
-	S *string
-	N *node.Node
-	P *predicate.Predicate
-	L *literal.Literal
-	T *time.Time
+	S *string              `json:"s,omitempty"`
+	N *node.Node           `json:"node,omitempty"`
+	P *predicate.Predicate `json:"pred,omitempty"`
+	L *literal.Literal     `json:"lit,omitempty"`
+	T *time.Time           `json:"time,omitempty"`
 }
 
 // String returns a readable representation of a cell.
@@ -116,27 +120,28 @@ func (r Row) ToTextLine(res *bytes.Buffer, bs []string, sep string) error {
 // you should be careful to provide valid rows.
 func (t *Table) AddRow(r Row) {
 	if len(r) > 0 {
-		t.data = append(t.data, r)
+		delete(r, "")
+		t.Data = append(t.Data, r)
 	}
 }
 
 // NumRows returns the number of rows currently available on the table.
 func (t *Table) NumRows() int {
-	return len(t.data)
+	return len(t.Data)
 }
 
 // Row returns the requested row. Rows start at 0. Also, if you request a row
 // beyond it will return nil, and the ok boolean will be false.
 func (t *Table) Row(i int) (Row, bool) {
-	if i < 0 || i >= len(t.data) {
+	if i < 0 || i >= len(t.Data) {
 		return nil, false
 	}
-	return t.data[i], true
+	return t.Data[i], true
 }
 
 // Rows returns all the available rows.
 func (t *Table) Rows() []Row {
-	return t.data
+	return t.Data
 }
 
 // AddBindings add the new bindings provided to the table.
@@ -144,7 +149,7 @@ func (t *Table) AddBindings(bs []string) {
 	for _, b := range bs {
 		if !t.mbs[b] {
 			t.mbs[b] = true
-			t.bs = append(t.bs, b)
+			t.AvailableBindings = append(t.AvailableBindings, b)
 		}
 	}
 }
@@ -155,15 +160,15 @@ func (t *Table) AddBindings(bs []string) {
 // fail, leave the table unmodified, and return an error. The projection only
 // modify the bindings, but does not drop non projected data.
 func (t *Table) ProjectBindings(bs []string) error {
-	if len(t.data) == 0 || len(t.mbs) == 0 {
+	if len(t.Data) == 0 || len(t.mbs) == 0 {
 		return nil
 	}
 	for _, b := range bs {
 		if !t.mbs[b] {
-			return fmt.Errorf("cannot project against unknow binding %s; known bindinds are %v", b, t.bs)
+			return fmt.Errorf("cannot project against unknow binding %s; known bindinds are %v", b, t.Bindings())
 		}
 	}
-	t.bs = []string{}
+	t.AvailableBindings = []string{}
 	t.mbs = make(map[string]bool)
 	t.AddBindings(bs)
 	return nil
@@ -176,38 +181,7 @@ func (t *Table) HasBinding(b string) bool {
 
 // Bindings returns the bindings contained on the tables.
 func (t *Table) Bindings() []string {
-	return t.bs
-}
-
-// ToText convert the table into a readable text versions. It requires the
-// separator to be used between cells.
-func (t *Table) ToText(sep string) (*bytes.Buffer, error) {
-	res, row := &bytes.Buffer{}, &bytes.Buffer{}
-	res.WriteString(strings.Join(t.bs, sep))
-	res.WriteString("\n")
-	for _, r := range t.data {
-		err := r.ToTextLine(row, t.bs, sep)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := res.Write(row.Bytes()); err != nil {
-			return nil, err
-		}
-		if _, err := res.WriteString("\n"); err != nil {
-			return nil, err
-		}
-		row.Reset()
-	}
-	return res, nil
-}
-
-// String attempts to force serialize the table into a string.
-func (t *Table) String() string {
-	b, err := t.ToText("\t")
-	if err != nil {
-		return fmt.Sprintf("Failed to serialize to text! Error: %s", err)
-	}
-	return b.String()
+	return t.AvailableBindings
 }
 
 // equalBindings returns true if the bindings are the same, false otherwise.
@@ -230,12 +204,12 @@ func (t *Table) AppendTable(t2 *Table) error {
 		return nil
 	}
 	if len(t.Bindings()) > 0 && !equalBindings(t.mbs, t2.mbs) {
-		return fmt.Errorf("AppendTable can only append to an empty table or equally binded table; intead got %v and %v", t.bs, t2.bs)
+		return fmt.Errorf("AppendTable can only append to an empty table or equally binded table; intead got %v and %v", t.AvailableBindings, t2.AvailableBindings)
 	}
 	if len(t.Bindings()) == 0 {
-		t.bs, t.mbs = t2.bs, t2.mbs
+		t.AvailableBindings, t.mbs = t2.AvailableBindings, t2.mbs
 	}
-	t.data = append(t.data, t2.data...)
+	t.Data = append(t.Data, t2.Data...)
 	return nil
 }
 
@@ -255,7 +229,9 @@ func MergeRows(ms []Row) Row {
 	res := make(map[string]*Cell)
 	for _, om := range ms {
 		for k, v := range om {
-			res[k] = v
+			if k != "" {
+				res[k] = v
+			}
 		}
 	}
 	return res
@@ -275,17 +251,17 @@ func (t *Table) DotProduct(t2 *Table) error {
 		m[k] = true
 	}
 	t.mbs = m
-	t.bs = []string{}
+	t.AvailableBindings = []string{}
 	for k := range t.mbs {
-		t.bs = append(t.bs, k)
+		t.AvailableBindings = append(t.AvailableBindings, k)
 	}
 	// Update the data.
-	td := t.data
-	cnt, size := 0, len(td)*len(t2.data)
-	t.data = make([]Row, size, size) // Preallocate resulting table.
+	td := t.Data
+	cnt, size := 0, len(td)*len(t2.Data)
+	t.Data = make([]Row, size, size) // Preallocate resulting table.
 	for _, r1 := range td {
-		for _, r2 := range t2.data {
-			t.data[cnt] = MergeRows([]Row{r1, r2})
+		for _, r2 := range t2.Data {
+			t.Data[cnt] = MergeRows([]Row{r1, r2})
 			cnt++
 		}
 	}
@@ -299,24 +275,24 @@ func (t *Table) DotProduct(t2 *Table) error {
 // see https://blog.golang.org/go-slices-usage-and-internals for a detailed
 // explanation.
 func (t *Table) DeleteRow(i int) error {
-	if i < 0 || i >= len(t.data) {
-		return fmt.Errorf("cannot delete row %d from a table with %d rows", i, len(t.data))
+	if i < 0 || i >= len(t.Data) {
+		return fmt.Errorf("cannot delete row %d from a table with %d rows", i, len(t.Data))
 	}
-	t.data = append(t.data[:i], t.data[i+1:]...)
+	t.Data = append(t.Data[:i], t.Data[i+1:]...)
 	return nil
 }
 
 // Truncate flushes all the data away. It still retains all set bindings.
 func (t *Table) Truncate() {
-	t.data = nil
+	t.Data = nil
 }
 
 // Limit keeps the initial ith rows.
 func (t *Table) Limit(i int64) {
-	if int64(len(t.data)) > i {
+	if int64(len(t.Data)) > i {
 		td := make([]Row, i, i) // Preallocate resulting table.
-		copy(td, t.data[:i])
-		t.data = td
+		copy(td, t.Data[:i])
+		t.Data = td
 	}
 }
 
@@ -431,7 +407,7 @@ func (t *Table) Sort(cfg SortConfig) {
 	if cfg == nil {
 		return
 	}
-	sort.Sort(bySortConfig{t.data, cfg})
+	sort.Sort(bySortConfig{t.Data, cfg})
 }
 
 // Accumulator type represents a generic accumulator for independent values
@@ -551,7 +527,7 @@ func (t *Table) groupRangeReduce(i, j int, alias map[string]string, acc map[stri
 		return nil, fmt.Errorf("cannot aggregate empty ranges [%d, %d)", i, j)
 	}
 	// Initialize the range and accumulator results.
-	rng := t.data[i:j]
+	rng := t.Data[i:j]
 	vaccs := make(map[string]interface{})
 	// Reset the accumulators.
 	for _, a := range acc {
@@ -619,7 +595,7 @@ func (t *Table) fullGroupRangeReduce(i, j int, acc map[string]map[string]AliasAc
 		return nil, fmt.Errorf("cannot aggregate empty ranges [%d, %d)", i, j)
 	}
 	// Initialize the range and accumulator results.
-	rng := t.data[i:j]
+	rng := t.Data[i:j]
 	// Reset the accumulators.
 	for _, aap := range acc {
 		for _, a := range aap {
@@ -703,10 +679,10 @@ func toMap(aaps []AliasAccPair) map[string]map[string]AliasAccPair {
 func (t *Table) Reduce(cfg SortConfig, aaps []AliasAccPair) error {
 	maaps := toMap(aaps)
 	// Input validation tests.
-	if len(t.bs) != len(maaps) {
-		return fmt.Errorf("table.Reduce cannot project bindings; current %v, requested %v", t.bs, aaps)
+	if len(t.AvailableBindings) != len(maaps) {
+		return fmt.Errorf("table.Reduce cannot project bindings; current %v, requested %v", t.AvailableBindings, aaps)
 	}
-	for _, b := range t.bs {
+	for _, b := range t.AvailableBindings {
 		if _, ok := maaps[b]; !ok {
 			return fmt.Errorf("table.Reduce missing binding alias for %q", b)
 		}
@@ -714,12 +690,12 @@ func (t *Table) Reduce(cfg SortConfig, aaps []AliasAccPair) error {
 	cnt := 0
 	for b := range maaps {
 		if _, ok := t.mbs[b]; !ok {
-			return fmt.Errorf("table.Reduce unknown reducer binding %q; available bindings %v", b, t.bs)
+			return fmt.Errorf("table.Reduce unknown reducer binding %q; available bindings %v", b, t.AvailableBindings)
 		}
 		cnt++
 	}
-	if cnt != len(t.bs) {
-		return fmt.Errorf("table.Reduce invalid reduce configuration in cfg=%v, aap=%v for table with binding %v", cfg, aaps, t.bs)
+	if cnt != len(t.AvailableBindings) {
+		return fmt.Errorf("table.Reduce invalid reduce configuration in cfg=%v, aap=%v for table with binding %v", cfg, aaps, t.AvailableBindings)
 	}
 	// Valid reduce configuration. Reduce sorts the table and then reduces
 	// contiguous groups row groups.
@@ -736,7 +712,7 @@ func (t *Table) Reduce(cfg SortConfig, aaps []AliasAccPair) error {
 		}
 		return res.String()
 	}
-	for idx, r := range t.data {
+	for idx, r := range t.Data {
 		current = id(r)
 		// First time.
 		if last == "" {
@@ -755,30 +731,125 @@ func (t *Table) Reduce(cfg SortConfig, aaps []AliasAccPair) error {
 		newData = append(newData, nr)
 		last, lastIdx = current, idx
 	}
-	nr, err := t.fullGroupRangeReduce(lastIdx, len(t.data), maaps)
+	nr, err := t.fullGroupRangeReduce(lastIdx, len(t.Data), maaps)
 	if err != nil {
 		return err
 	}
 	newData = append(newData, nr)
 	// Update the table.
-	t.bs, t.mbs = []string{}, make(map[string]bool)
+	t.AvailableBindings, t.mbs = []string{}, make(map[string]bool)
 	for _, aap := range aaps {
 		if !t.mbs[aap.OutAlias] {
-			t.bs = append(t.bs, aap.OutAlias)
+			t.AvailableBindings = append(t.AvailableBindings, aap.OutAlias)
 		}
 		t.mbs[aap.OutAlias] = true
 	}
-	t.data = newData
+	t.Data = newData
 	return nil
 }
 
 // Filter removes all the rows where the provided function returns true.
 func (t *Table) Filter(f func(Row) bool) {
 	var newData []Row
-	for _, r := range t.data {
+	for _, r := range t.Data {
 		if !f(r) {
 			newData = append(newData, r)
 		}
 	}
-	t.data = newData
+	t.Data = newData
+}
+
+// ToText convert the table into a readable text versions. It requires the
+// separator to be used between cells.
+func (t *Table) ToText(sep string) (*bytes.Buffer, error) {
+	res, row := &bytes.Buffer{}, &bytes.Buffer{}
+	res.WriteString(strings.Join(t.AvailableBindings, sep))
+	res.WriteString("\n")
+	for _, r := range t.Data {
+		err := r.ToTextLine(row, t.AvailableBindings, sep)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := res.Write(row.Bytes()); err != nil {
+			return nil, err
+		}
+		if _, err := res.WriteString("\n"); err != nil {
+			return nil, err
+		}
+		row.Reset()
+	}
+	return res, nil
+}
+
+// String attempts to force serialize the table into a string.
+func (t *Table) String() string {
+	b, err := t.ToText("\t")
+	if err != nil {
+		return fmt.Sprintf("Failed to serialize to text! Error: %s", err)
+	}
+	return b.String()
+}
+
+// ToJSON convert the table intotext versions. It requires the
+// separator to be used between cells JSON.
+func (t *Table) ToJSON(w io.Writer) {
+	w.Write([]byte(`{ "bindings": [`))
+
+	if len(t.AvailableBindings) > 0 {
+		w.Write([]byte(`"`))
+		w.Write([]byte(strings.Join(t.AvailableBindings, `", "`)))
+		w.Write([]byte(`"`))
+	}
+
+	w.Write([]byte(`], "rows": [`))
+
+	rc := len(t.Data)
+	for _, r := range t.Data {
+		if len(r) > 0 {
+			w.Write([]byte(`{ `))
+
+			cc := len(t.AvailableBindings)
+			for _, k := range t.AvailableBindings {
+				if k != "" {
+					c := r[k]
+					w.Write([]byte(`"`))
+					w.Write([]byte(k))
+					w.Write([]byte(`": {"`))
+
+					if c.S != nil {
+						w.Write([]byte(`string": "`))
+						w.Write([]byte(strings.Replace(*c.S, `"`, `\"`, -1)))
+					} else if c.N != nil {
+						w.Write([]byte(`node": "`))
+						w.Write([]byte(strings.Replace(c.N.String(), `"`, `\"`, -1)))
+					} else if c.P != nil {
+						w.Write([]byte(`pred": "`))
+						w.Write([]byte(strings.Replace(c.P.String(), `"`, `\"`, -1)))
+
+					} else if c.L != nil {
+						w.Write([]byte(`lit": "`))
+						w.Write([]byte(strings.Replace(c.L.String(), `"`, `\"`, -1)))
+
+					} else if c.T != nil {
+						w.Write([]byte(`anchor": "`))
+						w.Write([]byte(strings.Replace(c.T.Format(time.RFC3339Nano), `"`, `\"`, -1)))
+					}
+
+					w.Write([]byte(`"}`))
+					if cc > 1 {
+						w.Write([]byte(`,`))
+					}
+					w.Write([]byte(` `))
+				}
+				cc--
+			}
+			w.Write([]byte(` }`))
+			if rc > 1 {
+				w.Write([]byte(`, `))
+			}
+		}
+		rc--
+	}
+
+	w.Write([]byte(`] }`))
 }

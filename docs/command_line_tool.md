@@ -352,13 +352,13 @@ A line starting with # willbe treated as a commented line. If the load fails you
 end up with partially loaded data.
 
 ```
-$ badwolf load ./triples.txt ?graph
+$ bw load ./triples.txt ?graph
 ```
 
 It also suports importing into multiple graphs at once.
 
 ```
-$ badwolf load ./triples.txt ?graph1,?graph2,?graph3
+$ bw load ./triples.txt ?graph1,?graph2,?graph3
 ```
 
 
@@ -367,10 +367,166 @@ $ badwolf load ./triples.txt ?graph1,?graph2,?graph3
 Export all the triples in the provided graphs into the provided text file. 
 
 ```
-$ badwolf export ?graph ./triples.txt
+$ bw export ?graph ./triples.txt
 ```
 As the export command, it suports exporting multiple graphs at once.
 
 ```
 $ badwolf export ?graph1,?graph2,?grpah3 ./triples.txt
+```
+
+## Command: Server
+
+Ther ```server``` command starts a simple HTTP endpoint for BQL commands on
+the provided port. 
+
+```
+$ bw server 1234
+```
+
+This will start an enpoint on port ```1234```. You can just access the
+endpoint by hitting [http://localhost:1234](http://localhost:1234). 
+This will render a simple for you to enter muliple BQL queries.
+
+The endpoint for queries can be accessed at 
+[http://localhost:1234/bql](http://localhost:1234/bql) by posting a
+form with ```bqlQuery``` parameter. The enpoint returns, in JSON format,
+and array of results. Each element of the array contains:
+
+* _query_: The original passed query.
+* _msg_: A human readable message. It will contain error information if the
+         query failed to execute correctly.
+* _table_: If the query was run successfully and a query result was produced, 
+           _table_ will contain an array with the output bidings under
+		   _bindings_. The table data will be provided as an array of rows
+		   under the _rows_ field. Each row entry represents an object where
+		   the fields are the binding name and the valu an object containing
+		   the cell value. The cell value is an object that may contain 
+		   one of the following fields depending on the value type:
+		   _string_, _node_, _pred_, _lit_, or _anchor_. All the values
+		   are represented using the string format for each time. Time 
+		   anchors are formated following 
+		   (RFC3339Nano)[https://godoc.org/time#pkg-constants].
+
+For instance you can pass the following queries to the endpoint
+
+```
+create graph ?test;
+
+insert data into ?test {
+   /foo<id> "knows"@[] /bar<id>.
+   /foo<id> "follows"@[] /bar<id>
+};
+
+select ?s,?p,?o,?k,?l,?m
+from ?test
+where {
+  ?s ?p ?o.
+  ?k ?l ?m
+};
+```
+
+The endpoint will execute each of the statements in order and return and array
+of JSON formated objects, one for each query. For the above example you should
+get the following JSON on a newly started server:
+
+```
+[{
+	"query": "create graph ?test;",
+	"msg": "[OK]",
+	"table": {
+		"bindings": [],
+		"rows": []
+	}
+}, {
+	"query": "insert data into ?test {     /foo<id> \"knows\"@[] /bar<id>.     /foo<id> \"follows\"@[] /bar<id>  };",
+	"msg": "[OK]",
+	"table": {
+		"bindings": [],
+		"rows": []
+	}
+}, {
+	"query": "select ?s,?p,?o,?k,?l,?m  from ?test  where {    ?s ?p ?o.    ?k ?l ?m  };",
+	"msg": "[OK]",
+	"table": {
+		"bindings": ["?s", "?p", "?o", "?k", "?l", "?m"],
+		"rows": [{
+			"?s": {
+				"node": "/foo<id>"
+			},
+			"?p": {
+				"pred": "\"knows\"@[]"
+			},
+			"?o": {
+				"node": "/bar<id>"
+			},
+			"?k": {
+				"node": "/foo<id>"
+			},
+			"?l": {
+				"pred": "\"knows\"@[]"
+			},
+			"?m": {
+				"node": "/bar<id>"
+			}
+		}, {
+			"?s": {
+				"node": "/foo<id>"
+			},
+			"?p": {
+				"pred": "\"knows\"@[]"
+			},
+			"?o": {
+				"node": "/bar<id>"
+			},
+			"?k": {
+				"node": "/foo<id>"
+			},
+			"?l": {
+				"pred": "\"follows\"@[]"
+			},
+			"?m": {
+				"node": "/bar<id>"
+			}
+		}, {
+			"?s": {
+				"node": "/foo<id>"
+			},
+			"?p": {
+				"pred": "\"follows\"@[]"
+			},
+			"?o": {
+				"node": "/bar<id>"
+			},
+			"?k": {
+				"node": "/foo<id>"
+			},
+			"?l": {
+				"pred": "\"knows\"@[]"
+			},
+			"?m": {
+				"node": "/bar<id>"
+			}
+		}, {
+			"?s": {
+				"node": "/foo<id>"
+			},
+			"?p": {
+				"pred": "\"follows\"@[]"
+			},
+			"?o": {
+				"node": "/bar<id>"
+			},
+			"?k": {
+				"node": "/foo<id>"
+			},
+			"?l": {
+				"pred": "\"follows\"@[]"
+			},
+			"?m": {
+				"node": "/bar<id>"
+			}
+		}]
+	}
+}]
 ```
