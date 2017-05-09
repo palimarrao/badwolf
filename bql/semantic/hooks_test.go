@@ -198,9 +198,9 @@ func TestWhereSubjectClauseHook(t *testing.T) {
 	st := &Statement{}
 	f := whereSubjectClause()
 	st.ResetWorkingGraphClause()
-	n, err := node.Parse("/_<foo>")
+	n, err := node.ParseNode("/_<foo>")
 	if err != nil {
-		t.Fatalf("node.Parse failed with error %v", err)
+		t.Fatalf("node.ParseNode failed with error %v", err)
 	}
 	runTabulatedClauseHookTest(t, "semantic.whereSubjectClause", f, []testClauseTable{
 		{
@@ -563,9 +563,9 @@ func TestWhereObjectClauseHook(t *testing.T) {
 	st := &Statement{}
 	f := whereObjectClause()
 	st.ResetWorkingGraphClause()
-	node, err := node.Parse("/_<foo>")
+	node, err := node.ParseNode("/_<foo>")
 	if err != nil {
-		t.Fatalf("node.Parse failed with error %v", err)
+		t.Fatalf("node.ParseNode failed with error %v", err)
 	}
 	n := triple.NewNodeObject(node)
 	pred, err := predicate.Parse(`"foo"@[2015-07-19T13:12:04.669618843-07:00]`)

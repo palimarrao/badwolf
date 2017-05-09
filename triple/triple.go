@@ -88,7 +88,7 @@ func (o *Object) Literal() (*literal.Literal, error) {
 
 // ParseObject attempts to parse an object.
 func ParseObject(s string, b literal.Builder) (*Object, error) {
-	n, err := node.Parse(s)
+	n, err := node.ParseNode(s)
 	if err == nil {
 		return NewNodeObject(n), nil
 	}
@@ -189,7 +189,7 @@ func Parse(line string, b literal.Builder) (*Triple, error) {
 		return nil, fmt.Errorf("triple.Parse could not split s p o  out of %s", raw)
 	}
 	ss, sp, so := raw[0:idxp[0]+1], raw[idxp[1]-1:idxo[0]+1], raw[idxo[1]-1:]
-	s, err := node.Parse(ss)
+	s, err := node.ParseNode(ss)
 	if err != nil {
 		return nil, fmt.Errorf("triple.Parse failed to parse subject %s with error %v", ss, err)
 	}

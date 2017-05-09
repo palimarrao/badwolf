@@ -119,19 +119,19 @@ func TestParse(t *testing.T) {
 		// Invalid text nodes.
 	}
 	for _, tc := range table {
-		n, err := Parse(tc.s)
+		n, err := ParseNode(tc.s)
 		if tc.v && err != nil {
-			t.Errorf("node.Parse: failed to parse %q; %v", tc.s, err)
+			t.Errorf("node.ParseNode: failed to parse %q; %v", tc.s, err)
 		}
 		if !tc.v && err == nil {
-			t.Errorf("node.Parse: failed to reject invalid %q", tc.s)
+			t.Errorf("node.ParseNode: failed to reject invalid %q", tc.s)
 			continue
 		}
 		if got, want := n.Type().String(), tc.t; got != want {
-			t.Errorf("node.Parse: failed to return proper type; got %q, want %q", got, want)
+			t.Errorf("node.ParseNode: failed to return proper type; got %q, want %q", got, want)
 		}
 		if got, want := n.ID().String(), tc.id; got != want {
-			t.Errorf("node.Parse: failed to return proper id; got %q, want %q", got, want)
+			t.Errorf("node.ParseNode: failed to return proper id; got %q, want %q", got, want)
 		}
 	}
 }

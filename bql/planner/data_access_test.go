@@ -112,9 +112,9 @@ func TestDataAccessSimpleFetch(t *testing.T) {
 // Issue 40 (https://github.com/google/badwolf/issues/40)
 func TestDataAccessSimpleFetchIssue40(t *testing.T) {
 	testBindings, ctx := []string{"?itme", "?t"}, context.Background()
-	n, err := node.Parse("/room<Bedroom>")
+	n, err := node.ParseNode("/room<Bedroom>")
 	if err != nil {
-		t.Fatalf("node.Parse failed to parse \"/room<Bedroom>\", %v", err)
+		t.Fatalf("node.ParseNode failed to parse \"/room<Bedroom>\", %v", err)
 	}
 	cls := &semantic.GraphClause{
 		SBinding:       "?item",
@@ -174,7 +174,7 @@ func TestDataAccessUnfeasibleSimpleExist(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	unknown, err := node.Parse("/unknown<unknown>")
+	unknown, err := node.ParseNode("/unknown<unknown>")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,7 +244,7 @@ func TestDataAccessAddTriples(t *testing.T) {
 }
 
 func testNodePredicateLiteral(t *testing.T) (*node.Node, *predicate.Predicate, *literal.Literal) {
-	n, err := node.Parse(`/foo<bar>`)
+	n, err := node.ParseNode(`/foo<bar>`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,7 +260,7 @@ func testNodePredicateLiteral(t *testing.T) (*node.Node, *predicate.Predicate, *
 }
 
 func testNodeTemporalPredicateLiteral(t *testing.T) (*node.Node, *predicate.Predicate, *literal.Literal) {
-	n, err := node.Parse(`/foo<bar>`)
+	n, err := node.ParseNode(`/foo<bar>`)
 	if err != nil {
 		t.Fatal(err)
 	}

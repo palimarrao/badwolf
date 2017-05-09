@@ -69,17 +69,20 @@ func (c ConsumedElement) Token() *lexer.Token {
 	return c.token
 }
 
-// ToNode converts the node found by the lexer and converts it into a BadWolf
-// node.
+// ToNode converts the node or blank node found by the lexer into a BadWolf node
+// or blank node.
 func ToNode(ce ConsumedElement) (*node.Node, error) {
 	if ce.IsSymbol() {
-		return nil, fmt.Errorf("semantic.ToNode cannot convert symbol %v to a node", ce)
+		return nil, fmt.Errorf("semantic.ToNode cannot convert symbol %v to a node or blank node", ce)
 	}
 	tkn := ce.Token()
-	if tkn.Type != lexer.ItemNode {
-		return nil, fmt.Errorf("semantic.ToNode cannot convert token type %s to a node", tkn.Type)
+	if tkn.Type == lexer.ItemNode {
+		return node.ParseNode(tkn.Text)
 	}
-	return node.Parse(tkn.Text)
+	if tkn.Type == lexer.ItemBlankNode {
+		return node.ParseBlankNode(tkn.Text)
+	}
+	return nil, fmt.Errorf("semantic.ToNode cannot convert token type %s to a node or a blank node", tkn.Type)
 }
 
 // ToPredicate converts the node found by the lexer and converts it into a

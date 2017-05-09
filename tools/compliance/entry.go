@@ -100,7 +100,7 @@ func (s *Story) Unmarshal(ss string) error {
 
 // inferCell builds a Cell out of the provided string.
 func inferCell(s string) *table.Cell {
-	if n, err := node.Parse(s); err == nil {
+	if n, err := node.ParseNode(s); err == nil {
 		return &table.Cell{N: n}
 	}
 	if p, err := predicate.Parse(s); err == nil {

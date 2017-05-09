@@ -74,8 +74,8 @@ func (n *Node) String() string {
 	return fmt.Sprintf("%s<%s>", n.t.String(), n.id.String())
 }
 
-// Parse returns a node given a pretty printed representation of Node.
-func Parse(s string) (*Node, error) {
+// ParseNode returns a node given a pretty printed representation of Node.
+func ParseNode(s string) (*Node, error) {
 	raw := strings.TrimSpace(s)
 	idx := strings.Index(raw, "<")
 	if idx < 0 {
@@ -93,6 +93,14 @@ func Parse(s string) (*Node, error) {
 		return nil, fmt.Errorf("node.Parser: invalid ID in %q, %v", raw, err)
 	}
 	return NewNode(t, id), nil
+}
+
+// ParseBlankNode returns a blank node given a pretty printed representation of Blank Node.
+func ParseBlankNode(s string) (*Node, error) {
+	raw := strings.TrimSpace(s)
+	id := ID(raw[2 : len(raw)])
+	t :=  Type("/_")
+	return NewNode(&t, &id), nil
 }
 
 // Covariant checks if the types of two nodes is covariant.

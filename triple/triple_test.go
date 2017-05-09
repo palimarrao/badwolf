@@ -23,7 +23,7 @@ import (
 )
 
 func getTestData(t *testing.T) (*node.Node, *predicate.Predicate, *Object) {
-	s, err := node.Parse("/some/type<some id>")
+	s, err := node.ParseNode("/some/type<some id>")
 	if err != nil {
 		t.Fatalf("Failed to create test node")
 	}

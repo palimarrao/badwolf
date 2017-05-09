@@ -47,6 +47,8 @@ const (
 	Create
 	// Drop statement.
 	Drop
+	// Construct statement.
+	Construct
 )
 
 // String provides a readable version of the StatementType.
@@ -62,6 +64,8 @@ func (t StatementType) String() string {
 		return "CREATE"
 	case Drop:
 		return "DROP"
+	case Construct:
+		return "CONSTRUCT"
 	default:
 		return "UNKNOWN"
 	}
@@ -75,6 +79,8 @@ type Statement struct {
 	data                      []*triple.Triple
 	pattern                   []*GraphClause
 	workingClause             *GraphClause
+	constructPattern          []*ConstructClause
+	workingConstructClause    *ConstructClause
 	projection                []*Projection
 	workingProjection         *Projection
 	groupBy                   []string
@@ -120,6 +126,38 @@ type GraphClause struct {
 	OLowerBoundAlias string
 	OUpperBoundAlias string
 	OTemporal        bool
+}
+
+// ConstructClause represents a clause of a graph pattern in a construct clause.
+type ConstructClause struct {
+	S        *node.Node
+	SBinding string
+
+	P              *predicate.Predicate
+	PID            string
+	PBinding       string
+	PAnchorBinding string
+	PTemporal      bool
+
+	O        *triple.Object
+	OBinding string
+	OID      string
+
+
+	ReificationClause []*ReificationClause
+}
+
+
+// ReificationClause represents a clause used a reify a triple.
+type ReificationClause struct {
+	P              *predicate.Predicate
+	PID            string
+	PBinding       string
+	PAnchorBinding string
+	PTemporal      bool
+
+	O        *triple.Object
+	OBinding string
 }
 
 // String returns a readable representation of a graph clause.
@@ -296,7 +334,7 @@ func (c *GraphClause) Specificity() int {
 	return s
 }
 
-// BindingsMap returns the binding map fo he graph clause.
+// BindingsMap returns the binding map for the graph clause.
 func (c *GraphClause) BindingsMap() map[string]int {
 	bm := make(map[string]int)
 
@@ -323,7 +361,7 @@ func (c *GraphClause) BindingsMap() map[string]int {
 	return bm
 }
 
-// Bindings returns the list of unique bindings listed int he graph clause.
+// Bindings returns the list of unique bindings listed in the graph clause.
 func (c *GraphClause) Bindings() []string {
 	var bs []string
 	for k := range c.BindingsMap() {
@@ -332,9 +370,14 @@ func (c *GraphClause) Bindings() []string {
 	return bs
 }
 
-// IsEmpty will return true if the are no set values in the clause.
+// IsEmpty will return true if there are no set values in the clause.
 func (c *GraphClause) IsEmpty() bool {
 	return reflect.DeepEqual(c, &GraphClause{})
+}
+
+// IsEmpty will return true if there are no set values in the construct clause.
+func (c *ConstructClause) IsEmpty() bool {
+	return reflect.DeepEqual(c, &ConstructClause{})
 }
 
 // BindType sets the type of a statement.
@@ -347,7 +390,7 @@ func (s *Statement) Type() StatementType {
 	return s.sType
 }
 
-// AddGraph adds a graph to a given https://critique.corp.google.com/#review/101398527statement.
+// AddGraph adds a graph to a given statement.
 func (s *Statement) AddGraph(g string) {
 	s.graphNames = append(s.graphNames, g)
 }
@@ -578,6 +621,25 @@ func (s *Statement) InputBindings() []string {
 			res = append(res, p.Binding)
 		}
 	}
+	for _, c := range s.constructPattern {
+		if c.SBinding != "" {
+			res = append(res, c.SBinding)
+		}
+		if c.PBinding != "" {
+			res = append(res, c.PBinding)
+		}
+		if c.OBinding != "" {
+			res = append(res, c.OBinding)
+		}
+		for _, r := range c.ReificationClause {
+			if r.PBinding != "" {
+				res = append(res, r.PBinding)
+			}
+			if r.OBinding != "" {
+				res = append(res, r.OBinding)
+			}
+		}
+	}
 	return res
 }
 
@@ -633,4 +695,18 @@ func (s *Statement) Limit() int64 {
 func (s *Statement) GlobalLookupOptions() *storage.LookupOptions {
 	lo := s.lookupOptions
 	return &lo
+}
+
+// ResetWorkingConstructClause resets the current working construct clause.
+func (s *Statement) ResetWorkingConstructClause() {
+	s.workingConstructClause = &ConstructClause{}
+}
+
+// AddWorkingConstructClause adds the current working construct clause to the set
+// of clauses that form the construct pattern.
+func (s *Statement) AddWorkingConstructClause() {
+	if s.workingConstructClause != nil && !s.workingConstructClause.IsEmpty() {
+		s.constructPattern = append(s.constructPattern, s.workingConstructClause)
+	}
+	s.ResetWorkingConstructClause()
 }
